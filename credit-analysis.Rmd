@@ -1,0 +1,83 @@
+---
+title: "Credit analysis"
+author: "Elaine A."
+date: "May 23, 2019"
+output: html_document
+---
+
+```{r}
+credit = read.csv("C:/Users/Elaine/Documents/credit/credit data.csv")
+```
+
+```{r}
+credit %>% na_if("")
+```
+
+
+
+```{r}
+credit %>% map_df(~ sum(is.na(.)))
+```
+
+```{r}
+colnames(credit)
+```
+```{r}
+credit %>% select_if(is.numeric) %>% skim()
+```
+
+```{r}
+credit %>% map_df(~n_distinct(.)) %>% gather()
+```
+```{r}
+ggplot(data = credit) + geom_histogram(mapping = aes(x = age), binwidth = 0.5)
+
+## we can see that the AGE variable has outliers at 74 and 75 ages.
+# the most common values are between 22 and 40 years. This is most active age bracket, that is, where persons try to make a living therefore the time when they take loans to build their lives.
+# ages below 20 and above 50 are rare because one's credibility at these ages is very low hence the bank may be strict on giving them loans.
+```
+
+
+```{r}
+ggplot(data = credit) + geom_histogram(mapping = aes(x = months_loan_duration), binwidth = 0.5)
+
+##  we can also see that MONTH_LOAN_DURATION variable has outliers at 54, 60 and 72 months.
+# the most common values are 6,12,18,24 and 36 months, which is are clearly banks' duration terms for loan repayments.
+```
+```{r}
+ggplot(credit) + geom_smooth(mapping = aes(x = amount, y = months_loan_duration)) + geom_point(mapping = aes(x = amount, y = months_loan_duration))
+
+
+# The scatter plot shows a positive relationship between the amount of loan and the loan duration in months, meaning big loans are given longer repayment period and are scarce. 
+# The smooth blue graph shows that the loan duration increases with amount until amount = 10,000 where it starts approaching its horizontal asymptote. it has a logarithmic function.
+```
+```{r}
+ggplot(data = credit) + geom_point(aes(x = amount, y = months_loan_duration)) + facet_wrap(~credit_history)
+
+# to show the distribution by credit history
+
+```
+```{r}
+ ggplot(credit) + geom_bar(aes(x = credit_history, fill = credit_history), width = 1) + theme(aspect.ratio = 1) + coord_polar() 
+# shows the variation of credit history of the customers
+```
+```{r}
+split_values = sample.split(credit, SplitRatio = 0.7)
+train_credit = subset(credit, split_values == T)
+test_credit = subset(credit, split_values == F)
+
+```
+```{r}
+# the credit train model
+risky_loans = rpart(default~., train_credit)
+```
+
+```{r}
+loan_results = predict(risky_loans, test_credit)
+```
+
+```{r}
+table(Actualvalue = test_credit$default, Predictedvalue = risky_loans == 2)
+```
+
+
