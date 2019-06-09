@@ -1,27 +1,43 @@
-# PROBLEM DEFINITION :
-####  IDENTIFYING RISKY LOANS 
-#
-# For the outcome variable --default column-- :
-## 1 - good loan and 2 - bad loan
-# download and load the following packages : popbio, tidyr, broom, ggplot2, caret, visreg, rcompanion, ROCR, dplyr, skimr, purr, margins
+---
+title: "credit analysis"
+author: "Elaine A."
+date: "June 9, 2019"
+output: html_document
+---
 
-# load the data to a dataframe
+PROBLEM DEFINITION : Identifying Risky Loans
+      
+For the outcome variable --default column-- :
+  1 - good loan and 2 - bad loan
+
+```{r}
+# load the following packages:
+install.packages(c(tidyr, broom, ggplot2, caret, visreg, rcompanion, ROCR, dplyr, skimr, purr, margins, popbio))
+# then load the data to a dataframe
 credit = read.csv("credit data.csv")
+```
 
-#====================
-#EXPLORATORY ANALYSIS
-#====================
-
-View(credit)
-# view the structure of the data and see if there are any missing values
+=========================
+EXPLORATORY DATA ANALYSIS
+=========================
+```{r}
+# View the dataframe, the structure and the column names
+credit
 str(credit)
-credit$default = as.factor(credit$default)
 colnames(credit)
+credit$default = as.factor(credit$default)
+```
+```{r}
+# are there any missing values?
 sum(is.na(credit))
-
+# NO, hence it is a clean data
+```
+```{r}
 credit %>% skim() #get a summary of the values
 credit %>% map_df(~n_distinct(.)) %>% gather() # get the number of unique values for each column
-
+```
+```{r}
+# let us visualize some of our variables
 # see the distribution of some notable independent variables 
 ggplot(data = credit) + 
   geom_histogram(mapping = aes(x = age), binwidth = 0.5) # for age x-variable
@@ -42,11 +58,14 @@ ggplot(credit) +
   geom_smooth(mapping = aes(x = amount, y = months_loan_duration)) + 
   geom_point(mapping = aes(x = amount, y = months_loan_duration))
 
+```
 
-#=========
-#MODELLING
-#=========
+=========
+MODELLING
+=========
 
+```{r}
+# prepare the data!
 #change the levels of the target variable so that '1' remains as 1 and '2' to be 0 so that it 
 #may be possible to compare with our predicted values
 credit$default = ifelse(credit$default == 1, 1, 0)
@@ -57,6 +76,7 @@ plot(credit$amount, jitter(credit$default, 0.15),
      xlab = "amount",
      ylab = "default(1-good, 0-bad loan)")
 
+
 logi.hist.plot(credit$amount, 
                credit$default, 
                boxp = FALSE,
@@ -65,53 +85,59 @@ logi.hist.plot(credit$amount,
                xlabel = "amount", 
                ylabel = "Prob(1-good, 0-bad loan)"
                )
+```
+
+```{r}
 
 set.seed(123) 
 
-#We divide our data into two groups; train and test sets
+#lets divide our data into two groups; train and test sets
 splitCredit = sample(x = 2, 
                      size = nrow(credit), 
                      replace = TRUE, 
-                     prob = c(0.70, 0.30)
+                     prob = c(0.7, 0.3)
                      )
 
 train.credit = subset(credit, splitCredit ==1)
 test.credit = subset(credit, splitCredit ==2)
 
 #create the logistic model using glm() function 
-defaultmodel = glm(default ~ ., 
+defaultmodel = glm(default ~., 
                    family = "binomial", 
                    data = train.credit
                    )
 summary(defaultmodel)
 tidy(defaultmodel)
 
-# therefore to identify risky loans use:
-##   P = round((exp{2.808-0.0001152208*amount}/ (1 + exp{2.808-0.0001152208*amount}))))
-
 # calculate the odd ratios, that is, the coeffiecients or change of the dependent variables with change in the target variabl
 odd_ratio = exp(coef(defaultmodel))
-log(odd_ratio)
+odd_ratio
+```
 
+========
+Formula!
+========
+
+
+Therefore to identify risky loans use the formula:
+
+  P = round((exp{2.808-0.0001152208 \cdot amount}/ (1 + exp{2.808-0.0001152208 \cdot amount}))))
+  
+```{r}
 #plot the log odds
 visreg(defaultmodel, xvar = "amount", xlab = "Amount of credit", ylab = "Log odds of 'default'")
-visreg(defaultmodel, xvar = "months_loan_duration", xlab = "Loan duration", ylab = "Log odds of 'default'")
-visreg(defaultmodel, xvar = "credit_history", xlab = "Credit history", ylab = "Log odds of 'default'")
-visreg(defaultmodel, xvar = "employment_length", xlab = "Employment length", ylab = "Log odds of 'default'")
-visreg(defaultmodel, xvar = "age", xlab = "Age", ylab = "Log odds of 'default'")
 
 # plot the probabilities
 visreg(defaultmodel, xvar = "amount", scale = "response", rug = 2, xlab = "Amount of credit", ylab = "Prob of 'default'")
-visreg(defaultmodel, xvar = "age", scale = "response", rug = 2, xlab = "Age", ylab = "Prob of 'default'")
-visreg(defaultmodel, xvar = "credit_history", scale = "response", rug = 2, xlab = "Credit history", ylab = "Prob of 'default'")
-visreg(defaultmodel, xvar = "months_loan_duration", scale = "response", rug =2, xlab = "Loan duration", ylab = "Prob of 'default")
+```
 
+```{r}
 #average marginal effects that measures the rate of change of y(default) to a single unit change in x(independent variables)
 AME = margins(defaultmodel)
 plot(AME)
 #OR
 AME_df = summary(AME)
-ggplot(data = AME_df, aes(x = factor, y = AME)) + 
+ggplot(data = AME_df, aes(x = reorder(factor, desc(factor)) , y = AME)) + 
   geom_point() + 
   geom_errorbar(aes(x = factor, ymin = lower, ymax = upper)) +
   geom_hline(yintercept = 0) +
@@ -119,15 +145,24 @@ ggplot(data = AME_df, aes(x = factor, y = AME)) +
   coord_flip() +
   scale_color_grey()
 
-#==========
-#EVALUATION
-#==========
+```
+
+
+==========
+EVALUATION
+==========
+
+```{r}
 # let's now predict our test dataset
 creditPredict = round(predict(defaultmodel, newdata = test.credit, type = "response")) #round off the values to get the in 0s and 1s  
 creditPredict
 # see the comparison between our predicted and test dataset values
 crediteval = data.frame(observed = test.credit$default, predicted = creditPredict)
 crediteval
+
+```
+
+```{r}
 #table the results 
 creditTable = table(test.credit$default, creditPredict)
 creditTable
@@ -135,21 +170,21 @@ creditTable
 sum(diag(creditTable))/sum(creditTable) * 100
 #or simply
 confusionMatrix(creditTable)
+```
 
+```{R}
 #get the pseudo R2
 nagelkerke(defaultmodel)
-# the value is way lower than 0.5, hence the actual values are far away very from the regression line 
 
+```
+The value (R^2 = 0.3) is way lower than half, hence the actual values are far away very from the regression line.
+
+```{r}
 #the ROCR curve
 cpred_df = round(predict(defaultmodel, newdata = train.credit, type = "response"))
 ROCRpred = prediction(predictions = cpred_df, labels = train.credit$default)
 ROCRperf = performance(prediction.obj = ROCRpred, "tpr", "fpr")
 
 plot(ROCRperf, colorize = TRUE, print.cutoffs.at = seq(0.1, by = 0.1))
-
-# max = which.max(slot(ROCRper, "y.values")[[1]])
-# max
-# acc = slot(ROCRper, "y.values")[[1]][max]
-# cut = slot(ROCRper, "x.values")[[1]][max]
-# print(c(accuracy = acc, cutoff = cut))
+```
 
