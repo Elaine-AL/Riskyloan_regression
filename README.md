@@ -1,6 +1,9 @@
 # Identifying risky loans using logistic regression
 
 ===================================================
+
+
+
 The project aims a building logistic regression model that identifies risky loan (1 for good loan and 2 for bad loan) from bank details of its sampled 1000 customers.
 
 >The model produced the formula below to identify whether a loan is risky or not. If 1 then good loan, otherwise bad: ![formula](https://latex.codecogs.com/gif.latex?%24%24P%20%3D%20round%5Cleft%28%20%5Cfrac%7B%28exp%5B2.808-%200.0001152208%20%5Ctimes%20amount%5D%29%7D%7B%281%20&plus;%20exp%5B2.808-%200.0001152208%20%5Ctimes%20amount%5D%29%7D%5Cright%29%24%24)
