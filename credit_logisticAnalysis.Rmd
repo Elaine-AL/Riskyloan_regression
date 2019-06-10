@@ -1,31 +1,32 @@
 ---
-title: "credit analysis"
+title: "Credit analysis"
 author: "Elaine A."
 date: "June 9, 2019"
 output: html_document
 ---
 
-PROBLEM DEFINITION : Identifying Risky Loans
+PROBLEM DEFINITION : **Identifying Risky Loans**
       
 For the outcome variable --default column-- :
   1 - good loan and 2 - bad loan
 
 ```{r}
 # load the following packages:
-install.packages(c(tidyr, broom, ggplot2, caret, visreg, rcompanion, ROCR, dplyr, skimr, purr, margins, popbio))
+# install.packages(c( tidyr, broom, ggplot2, caret, visreg, rcompanion, ROCR, dplyr, skimr, purr, margins, popbio, knitr))
 # then load the data to a dataframe
 credit = read.csv("credit data.csv")
 ```
 
-=========================
-EXPLORATORY DATA ANALYSIS
-=========================
-```{r}
+   =========================
+   EXPLORATORY DATA ANALYSIS
+   ========================= 
+```{r credit}
 # View the dataframe, the structure and the column names
-credit
+kable(credit[1:5, ]) #view the top 5 records
 str(credit)
 colnames(credit)
-credit$default = as.factor(credit$default)
+#to change our target variable from int type to factor levels of "1"s and "2"s
+credit$default = as.factor(credit$default) 
 ```
 ```{r}
 # are there any missing values?
@@ -33,17 +34,23 @@ sum(is.na(credit))
 # NO, hence it is a clean data
 ```
 ```{r}
-credit %>% skim() #get a summary of the values
-credit %>% map_df(~n_distinct(.)) %>% gather() # get the number of unique values for each column
+credit %>% skim()  #get a summary of the values
+kable(credit %>% map_df(~n_distinct(.)) %>% gather())   # get the number of unique values for each column
 ```
-```{r}
-# let us visualize some of our variables
+
+## Let us visualize some of our variables
+
+```{r ggplot}
+
 # see the distribution of some notable independent variables 
 ggplot(data = credit) + 
-  geom_histogram(mapping = aes(x = age), binwidth = 0.5) # for age x-variable
+    geom_point(mapping = aes(x = amount, y = default)) #for amount x-variable
 
 ggplot(data = credit) + 
-  geom_histogram(mapping = aes(x = months_loan_duration), binwidth = 0.5) # for months_loan_duration x-variable
+  geom_histogram(mapping = aes(x = age), binwidth = 0.5) # for age x-variable we can see that the AGE variable has outliers at 74 and 75 ages. The most common values are between 22 and 40 years. This is most active age bracket, that is, where persons try to make a living therefore the time when they take loans to build their lives. Ages below 20 and above 50 are rare because one's credibility at these ages is very low hence the bank may be strict on giving them loans.
+
+ggplot(data = credit) + 
+  geom_histogram(mapping = aes(x = months_loan_duration), binwidth = 0.5) # for months_loan_duration x-variable we can also see that MONTH_LOAN_DURATION variable has outliers at 54, 60 and 72 months.The most common values are 6,12,18,24 and 36 months, which is are clearly banks' duration terms for loan repayments.
 
 ggplot(credit) + 
   geom_bar(aes(x = credit_history, fill = credit_history), width = 1) + 
@@ -57,17 +64,20 @@ ggplot(data = credit) +
 ggplot(credit) + 
   geom_smooth(mapping = aes(x = amount, y = months_loan_duration)) + 
   geom_point(mapping = aes(x = amount, y = months_loan_duration))
+# The scatter plot shows a positive relationship between the amount of loan and the loan duration in months, meaning big loans are given longer repayment period and are scarce. The smooth blue graph shows that the loan duration increases with amount until amount = 10,000 where it starts approaching its horizontal asymptote. it has a logarithmic function.
 
 ```
 
-=========
-MODELLING
-=========
 
-```{r}
+  =========
+  MODELLING
+  =========
+
+
+```{r model plot}
 # prepare the data!
-#change the levels of the target variable so that '1' remains as 1 and '2' to be 0 so that it 
-#may be possible to compare with our predicted values
+# change the levels of the target variable so that '1' remains as 1 and '2' to be 0 so that it 
+# may be possible to compare with our predicted values
 credit$default = ifelse(credit$default == 1, 1, 0)
 
 #let us first see how the amount of loan varies by default type
@@ -87,11 +97,15 @@ logi.hist.plot(credit$amount,
                )
 ```
 
-```{r}
+
+The logistic regression model produces a 2-shaped sigmoid curve moving from Prob = 1 to Prob = 0, with majority of the records of loan being good loans. This means the higher the amount of loan the riskier it is, and the lower it is the less the risk. 
+
+
+```{r model}
 
 set.seed(123) 
 
-#lets divide our data into two groups; train and test sets
+#lets divide our data into two groups; train(70%) and test(30%) sets
 splitCredit = sample(x = 2, 
                      size = nrow(credit), 
                      replace = TRUE, 
@@ -118,21 +132,24 @@ odd_ratio
 Formula!
 ========
 
-
 Therefore to identify risky loans use the formula:
 
-  P = round((exp{2.808-0.0001152208 \cdot amount}/ (1 + exp{2.808-0.0001152208 \cdot amount}))))
-  
-```{r}
-#plot the log odds
+ $$P = round\left( \frac{(exp[2.808- 0.0001152208 \times amount])}{(1 + exp[2.808- 0.0001152208 \times amount])}\right)$$
+
+
+
+### Plot the log odds and probabilities 
+
+```{r visreg}
 visreg(defaultmodel, xvar = "amount", xlab = "Amount of credit", ylab = "Log odds of 'default'")
 
 # plot the probabilities
 visreg(defaultmodel, xvar = "amount", scale = "response", rug = 2, xlab = "Amount of credit", ylab = "Prob of 'default'")
 ```
 
-```{r}
-#average marginal effects that measures the rate of change of y(default) to a single unit change in x(independent variables)
+## Average marginal effects
+```{r AME}
+#average marginal effects measures the rate of change of y(default) to a single unit change in x(independent variables)
 AME = margins(defaultmodel)
 plot(AME)
 #OR
@@ -152,7 +169,7 @@ ggplot(data = AME_df, aes(x = reorder(factor, desc(factor)) , y = AME)) +
 EVALUATION
 ==========
 
-```{r}
+```{r prediction}
 # let's now predict our test dataset
 creditPredict = round(predict(defaultmodel, newdata = test.credit, type = "response")) #round off the values to get the in 0s and 1s  
 creditPredict
@@ -161,25 +178,31 @@ crediteval = data.frame(observed = test.credit$default, predicted = creditPredic
 crediteval
 
 ```
+## Confusion matrix
 
-```{r}
+```{r confusion matrix}
 #table the results 
 creditTable = table(test.credit$default, creditPredict)
 creditTable
 #get the accuracy
 sum(diag(creditTable))/sum(creditTable) * 100
+# the model is fairly accurate
+
 #or simply
 confusionMatrix(creditTable)
 ```
 
-```{R}
+```{r R^2}
 #get the pseudo R2
 nagelkerke(defaultmodel)
 
 ```
+
+
 The value (R^2 = 0.3) is way lower than half, hence the actual values are far away very from the regression line.
 
-```{r}
+## ROCR curve
+```{r ROCR curve}
 #the ROCR curve
 cpred_df = round(predict(defaultmodel, newdata = train.credit, type = "response"))
 ROCRpred = prediction(predictions = cpred_df, labels = train.credit$default)
